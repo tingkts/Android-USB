@@ -5,7 +5,7 @@
 - [UsbDevice  |  Android Developers](https://developer.android.com/reference/android/hardware/usb/UsbDevice)
 - [UsbInterface  |  Android Developers](https://developer.android.com/reference/android/hardware/usb/UsbInterface)
 
-&nbsp;![](./reference/UML%-%MtpDevice,%MtpObject.png)　
+![avatar](https://github.com/tingkts/Android-USB/blob/master/MTP%2C%20PTP/reference/UML%20-%20MtpDevice%2C%20MtpObject.png)
 
 
 ### MTP knowledge
@@ -16,7 +16,7 @@
     - [Android之 MTP框架和流程分析 - 如果天空不死 - 博客园](https://www.cnblogs.com/skywang12345/p/3474206.html)
     - [Android之 MTP框架和流程分析 (3) - 开发者知识库](https://www.itdaan.com/tw/1a6b8bee6d3e06f273b04f55979231cc)
 
-&nbsp;![](./reference/MTP%concept%quick%view.png)　
+![avatar](https://github.com/tingkts/Android-USB/blob/master/MTP%2C%20PTP/reference/MTP%20concept%20quick%20view.png)
 
 
 
