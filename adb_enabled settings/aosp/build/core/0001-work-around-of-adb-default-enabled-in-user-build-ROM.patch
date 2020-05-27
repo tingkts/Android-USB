@@ -1,0 +1,25 @@
+From 10617b843dc3250825e2b90c2fa641fc8555f5cc Mon Sep 17 00:00:00 2001
+From: tingsung <tingsung@msi.com>
+Date: Thu, 3 Oct 2019 15:08:18 +0800
+Subject: [PATCH] work around of adb default enabled in user build ROM in the
+ RK3399 platform
+
+---
+ core/main.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/core/main.mk b/core/main.mk
+index 4d919c767..b5344acd7 100644
+--- a/core/main.mk
++++ b/core/main.mk
+@@ -284,6 +284,7 @@ ifneq (,$(user_variant))
+ 
+   ifeq ($(user_variant),user)
+     ADDITIONAL_DEFAULT_PROPERTIES += ro.adb.secure=1
++    ADDITIONAL_DEFAULT_PROPERTIES += persist.sys.usb.config=none
+   endif
+ 
+   ifeq ($(user_variant),userdebug)
+-- 
+2.21.0
+
