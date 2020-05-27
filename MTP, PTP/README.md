@@ -16,7 +16,7 @@
     - [Android之 MTP框架和流程分析 - 如果天空不死 - 博客园](https://www.cnblogs.com/skywang12345/p/3474206.html)
     - [Android之 MTP框架和流程分析 (3) - 开发者知识库](https://www.itdaan.com/tw/1a6b8bee6d3e06f273b04f55979231cc)
 
-![avatar](https://github.com/tingkts/Android-USB/blob/master/MTP%2C%20PTP/reference/MTP%20concept%20quick%20view.png)
+
 
 
 
@@ -31,7 +31,7 @@
     - [ADB Drivers showing up as 'LeMobile Android Device' - HELP? : Nexus6P](https://www.reddit.com/r/Nexus6P/comments/5nc64z/adb_drivers_showing_up_as_lemobile_android_device/)
 
 
- ![Windows Device Manager ADB MTP driver](reference/Windows%Device%Manager%ADB%MTP%driver.PNG)
+![avatar](https://github.com/tingkts/Android-USB/blob/master/MTP%2C%20PTP/reference/Windows%20Device%20Manager%20ADB%20MTP%20driver.PNG){:height="50%" width="50%"}
 
 
 ### USB glossary
