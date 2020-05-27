@@ -1,4 +1,4 @@
-### adb_enabled settings value
+### the settings value of adb_enabled
 
 Settings UI : [AbstractEnableAdbPreferenceController.java](http://androidxref.com/9.0.0_r3/xref/frameworks/base/packages/SettingsLib/src/com/android/settingslib/development/AbstractEnableAdbPreferenceController.java)
 
