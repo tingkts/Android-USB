@@ -43,6 +43,34 @@
 
 ### Source Code
 
+- source tree
+
+```
+	Java :
+		frameworks/base/media/java/android/mtp
+		frameworks/base/packages/MtpDocumentsProvider
+
+	Native :
+		frameworks/base/media/jni/android_mtp_*
+		frameworks/av/media/mtp/			    // system/lib/libmtp.so
+
+	HIDL :
+		hardware/interfaces/usb
+		vendor/nxp-opensource/imx/usb                       // the NXP's implementation of usb & usb gadget
+
+	Kernel :
+		drivers/usb/gadget/function/f_fs.c
+
+		drivers/usb/gadget/configfs.h
+		drivers/usb/gadget/configfs.c
+
+		include/uapi/linux/usb/ch9.h
+
+	Sepolicy:
+		system/sepolicy/private/mtp.te
+		system/sepolicy/public/mtp.te
+```
+
 - [Gadget Function](http://androidxref.com/9.0.0_r3/xref/hardware/interfaces/usb/gadget/1.0/types.hal)
 
 ```hidl
@@ -89,33 +117,11 @@ enum GadgetFunction : uint64_t {
 };
 ```
 
-- Source tree
+- vendor\nxp-opensource\imx\usb\UsbGadget.cpp
 
-```
-	Java :
-		frameworks/base/media/java/android/mtp
-		frameworks/base/packages/MtpDocumentsProvider
+![avatar](./reference/vendor_nxp-opensource_imx_usb_UsbGadget.png)
 
-	Native :
-		frameworks/base/media/jni/android_mtp_*
-		frameworks/av/media/mtp/			    // system/lib/libmtp.so
 
-	HIDL :
-		hardware/interfaces/usb
-		vendor/nxp-opensource/imx/usb                       // the NXP's implementation of usb & usb gadget
-
-	Kernel :
-		drivers/usb/gadget/function/f_fs.c
-
-		drivers/usb/gadget/configfs.h
-		drivers/usb/gadget/configfs.c
-
-		include/uapi/linux/usb/ch9.h
-
-	Sepolicy:
-		system/sepolicy/private/mtp.te
-		system/sepolicy/public/mtp.te
-```
 
 
 ### System Property
