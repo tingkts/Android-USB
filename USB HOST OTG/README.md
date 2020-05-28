@@ -1,6 +1,3 @@
-
-
-
 ## USB Controller (UDC)
 
 |    UDC name   | description                                                                                                                                                                                                                                                |
@@ -9,6 +6,9 @@
 | DWC3/DWC2 | The Synopsys DesignWare Core SuperSpeed USB 3.0 Controller (hereinafter referred to as [DWC3](https://www.kernel.org/doc/html/v4.18/driver-api/usb/dwc3.html)) is a USB SuperSpeed compliant controller                                         |
 | ci_udc, ci_hdrc    |                                                                                                                                                                                                                                                 |
 
+
+
+<br>
 
 ## USB glossary
 
@@ -19,9 +19,11 @@
 - [USB的DP(D-) DM(D+)的英文全称是什么?_百度知道](https://zhidao.baidu.com/question/269448960.html?qbpn=1_1&fr=newsearchlist&word=USB%E7%9A%84DP%28D-%29%20DM%28D%2B%29%E7%9A%84%E8%8B%B1%E6%96%87%E5%85%A8%E7%A7%B0%E6%98%AF%E4%BB%80%E4%B9%88%3F&aup=1)
 
 
+<br>
+
 ## USB Host, USB OTG　
 
-![avatar](.\reference\usb%20port.png)
+![](https://github.com/tingkts/Android-USB/blob/master/USB%20HOST%20OTG/reference/usb%20port.png)
 
 
 - [USB HOST與 USB OTG的區別及工作原理 - IT閱讀](https://www.itread01.com/content/1541235793.html)
