@@ -98,7 +98,7 @@ enum GadgetFunction : uint64_t {
 
 	Native :
 		frameworks/base/media/jni/android_mtp_*
-		frameworks/av/media/mtp/							// system/lib/libmtp.so
+		frameworks/av/media/mtp/			    // system/lib/libmtp.so
 
 	HIDL :
 		hardware/interfaces/usb
