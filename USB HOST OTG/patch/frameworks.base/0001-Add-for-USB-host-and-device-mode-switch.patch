@@ -1,0 +1,87 @@
+From bae19c1590e6af9efddf0b570a6652010725532a Mon Sep 17 00:00:00 2001
+From: tingsung <tingsung@msi.com>
+Date: Tue, 10 Dec 2019 10:00:58 +0800
+Subject: [PATCH] Add for USB host and device mode switch
+
+---
+ .../android/server/usb/UsbDeviceManager.java  | 34 +++++++++++++++++++
+ 1 file changed, 34 insertions(+)
+
+diff --git a/services/usb/java/com/android/server/usb/UsbDeviceManager.java b/services/usb/java/com/android/server/usb/UsbDeviceManager.java
+index ee59693537c..2e956a8a6e5 100644
+--- a/services/usb/java/com/android/server/usb/UsbDeviceManager.java
++++ b/services/usb/java/com/android/server/usb/UsbDeviceManager.java
+@@ -94,6 +94,7 @@ import java.io.File;
+ import java.io.FileDescriptor;
+ import java.io.FileNotFoundException;
+ import java.io.IOException;
++import java.io.FileWriter;
+ import java.util.HashMap;
+ import java.util.HashSet;
+ import java.util.Iterator;
+@@ -111,6 +112,11 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
+     private static final String TAG = UsbDeviceManager.class.getSimpleName();
+     private static final boolean DEBUG = false;
+
++    private static final String USB_ID_H = "1";
++    private static final String USB_ID_L = "0";
++    private static final String USB_SWITCH_PATH =
++	    "/sys/devices/platform/5b0d0000.usb/ci_hdrc.0/udc/ci_hdrc.0/switch_id";
++
+     /**
+      * The name of the xml file in which screen unlocked functions are stored.
+      */
+@@ -249,6 +255,26 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
+         onKeyguardStateChanged(false);
+     }
+
++    private static void writeToFile(String content, File path)
++	throws IOException {
++
++	try (FileWriter writer = new FileWriter(path)) {
++		writer.write(content);
++	}
++    }
++
++    private static void switch_usb_id(String id_state) {
++
++	File path;
++
++	path = new File(USB_SWITCH_PATH);
++	try {
++		writeToFile(id_state, path);
++	} catch (IOException e) {
++		e.printStackTrace();
++	}
++    }
++
+     public UsbDeviceManager(Context context, UsbAlsaManager alsaManager,
+             UsbSettingsManager settingsManager) {
+         mContext = context;
+@@ -258,6 +284,12 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
+         initRndisAddress();
+
+         boolean halNotPresent = false;
++        String usb_ffs = SystemProperties.get("sys.usb.ffs.ready", "0");
++        if(usb_ffs.equals(USB_ID_H.trim())) {
++            switch_usb_id(USB_ID_H);
++        } else {
++            switch_usb_id(USB_ID_L);
++        }
+         try {
+             IUsbGadget.getService(true);
+         } catch (RemoteException e) {
+@@ -603,8 +635,10 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
+             if (DEBUG) Slog.d(TAG, "setAdbEnabled: " + enable);
+
+             if (enable) {
++                switch_usb_id(USB_ID_H);
+                 setSystemProperty(USB_PERSISTENT_CONFIG_PROPERTY, UsbManager.USB_FUNCTION_ADB);
+             } else {
++                switch_usb_id(USB_ID_L);
+                 setSystemProperty(USB_PERSISTENT_CONFIG_PROPERTY, "");
+             }
+
+--
+2.17.1
+

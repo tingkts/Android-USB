@@ -1,0 +1,212 @@
+From c190e560709b4ce89d2f919da0eeac3cf5efd59f Mon Sep 17 00:00:00 2001
+From: tingsung <tingsung@msi.com>
+Date: Wed, 22 Apr 2020 14:52:12 +0800
+Subject: [PATCH] usb function
+
+- Disable Type-C function to avoid USB issues
+
+- Add USB Host and Slave function switch
+
+Change-Id: I96491b34773fee0826b348bdfdf6134f2a2a86c7
+---
+ .../boot/dts/freescale/msi-imx8qm-ms5765.dtsi |  6 ++-
+ arch/arm64/configs/ms5765_android_defconfig   |  4 +-
+ drivers/usb/chipidea/core.c                   | 15 ++++++
+ drivers/usb/common/common.c                   |  8 ++++
+ drivers/usb/gadget/udc/core.c                 | 48 +++++++++++++++++++
+ include/linux/usb/otg.h                       |  1 +
+ 6 files changed, 78 insertions(+), 4 deletions(-)
+ mode change 100644 => 100755 drivers/usb/common/common.c
+
+diff --git a/arch/arm64/boot/dts/freescale/msi-imx8qm-ms5765.dtsi b/arch/arm64/boot/dts/freescale/msi-imx8qm-ms5765.dtsi
+index 07c7b22b3d30..20b3a329e431 100644
+--- a/arch/arm64/boot/dts/freescale/msi-imx8qm-ms5765.dtsi
++++ b/arch/arm64/boot/dts/freescale/msi-imx8qm-ms5765.dtsi
+@@ -880,6 +880,7 @@
+ 			fsl,pins = <
+ 				SC_P_USB_SS3_TC0_CONN_USB_OTG1_PWR					0x00000021
+ 				SC_P_USB_SS3_TC2_CONN_USB_OTG1_OC					0x00000021
++				SC_P_SPDIF0_EXT_CLK_LSIO_GPIO2_IO16					0x0600004c
+ 			>;
+ 		};
+
+@@ -1126,12 +1127,13 @@
+ &usbotg1 {
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&pinctrl_usbotg1>;
+-	dr_mode = "host";
++	//dr_mode = "host";
+ 	srp-disable;
+ 	hnp-disable;
+ 	adp-disable;
+-	power-polarity-active-high;
++	select_id = <&gpio2 16 1>;
+ 	disable-over-current;
++	power-polarity-active-high;
+ 	status = "okay";
+ };
+
+diff --git a/arch/arm64/configs/ms5765_android_defconfig b/arch/arm64/configs/ms5765_android_defconfig
+index 17d5aa1891e0..a94c2520ffb1 100644
+--- a/arch/arm64/configs/ms5765_android_defconfig
++++ b/arch/arm64/configs/ms5765_android_defconfig
+@@ -818,8 +818,8 @@ CONFIG_USB_MASS_STORAGE=m
+ CONFIG_USB_G_SERIAL=m
+ CONFIG_USB_CDC_COMPOSITE=m
+ CONFIG_TYPEC=y
+-CONFIG_TYPEC_TCPM=y
+-CONFIG_TYPEC_TCPCI=y
++# CONFIG_TYPEC_TCPM=y
++# CONFIG_TYPEC_TCPCI=y
+ CONFIG_MMC=y
+ CONFIG_MMC_BLOCK_MINORS=32
+ CONFIG_MMC_ARMMMCI=y
+diff --git a/drivers/usb/chipidea/core.c b/drivers/usb/chipidea/core.c
+index 7f07b58f9cdc..ffedc3b8d772 100644
+--- a/drivers/usb/chipidea/core.c
++++ b/drivers/usb/chipidea/core.c
+@@ -61,6 +61,8 @@
+ #include <linux/of.h>
+ #include <linux/regulator/consumer.h>
+ #include <linux/usb/ehci_def.h>
++#include <linux/gpio.h>
++#include <linux/of_gpio.h>
+
+ #include "ci.h"
+ #include "udc.h"
+@@ -280,6 +282,19 @@ static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
+
+ 	/* HCSPARAMS.bf.ppc SHOULD BE zero for device */
+
++	if(ci->platdata)
++	{
++		if(ci->platdata->ci_otg_caps.select_id_gpio)
++		{
++			int ret;
++
++			ret = gpio_request_one(ci->platdata->ci_otg_caps.select_id_gpio, GPIOF_OUT_INIT_LOW, "Selected USB-ID");
++			if(ret){
++				dev_err(ci->dev, "request selected USB-ID error!!\n");
++			}
++		}
++	}
++
+ 	return 0;
+ }
+
+diff --git a/drivers/usb/common/common.c b/drivers/usb/common/common.c
+old mode 100644
+new mode 100755
+index 73c8e6591746..5d081191f0f4
+--- a/drivers/usb/common/common.c
++++ b/drivers/usb/common/common.c
+@@ -15,6 +15,8 @@
+ #include <linux/usb/of.h>
+ #include <linux/usb/otg.h>
+ #include <linux/of_platform.h>
++#include <linux/gpio.h>
++#include <linux/of_gpio.h>
+
+ const char *usb_otg_state_string(enum usb_otg_state state)
+ {
+@@ -243,6 +245,12 @@ int of_usb_update_otg_caps(struct device_node *np,
+ 	if (of_property_read_bool(np, "adp-disable") ||
+ 				(otg_caps->otg_rev < 0x0200))
+ 		otg_caps->adp_support = false;
++
++	otg_caps->select_id_gpio = of_get_named_gpio(np, "select_id", 0);
++	printk("of_usb_update_otg_caps : Get selected usb id gpio = %d\n", otg_caps->select_id_gpio);
++	if (!gpio_is_valid(otg_caps->select_id_gpio)) {
++		pr_err("pin select_id: invalid gpio %d\n", otg_caps->select_id_gpio);
++	}
+
+ 	return 0;
+ }
+diff --git a/drivers/usb/gadget/udc/core.c b/drivers/usb/gadget/udc/core.c
+index 0841e8888ce7..a8d352a75f01 100644
+--- a/drivers/usb/gadget/udc/core.c
++++ b/drivers/usb/gadget/udc/core.c
+@@ -19,6 +19,10 @@
+ #include <linux/usb/gadget.h>
+ #include <linux/usb.h>
+
++#include <linux/gpio.h>
++#include <linux/of_gpio.h>
++#include <linux/usb/otg.h>
++
+ #include "trace.h"
+
+ /**
+@@ -1449,6 +1453,49 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+ }
+ EXPORT_SYMBOL_GPL(usb_gadget_unregister_driver);
+
++static ssize_t usb_udc_switch_id_show(struct device *dev,                               \
++                struct device_attribute *attr, char *buf)
++{
++        struct usb_udc          *udc = container_of(dev, struct usb_udc, dev);
++        struct usb_otg_caps *otg_caps = udc->gadget->otg_caps;
++        int sw_id_st = 0;
++
++        if(otg_caps){
++                if(otg_caps->select_id_gpio){
++                sw_id_st = gpio_get_value(otg_caps->select_id_gpio);
++                }
++        }
++        return snprintf(buf, PAGE_SIZE, "%d\n", sw_id_st);
++}
++static ssize_t usb_udc_switch_id_store(struct device *dev,
++                struct device_attribute *attr, const char *buf, size_t n)
++{
++        struct usb_udc          *udc = container_of(dev, struct usb_udc, dev);
++        struct usb_otg_caps *otg_caps = udc->gadget->otg_caps;
++
++        if (sysfs_streq(buf, "1")){
++                if(otg_caps){
++                        if(otg_caps->select_id_gpio){
++                                printk("usb_udc_switch_id_store - set switching node is 1\n");
++                                gpio_direction_output(otg_caps->select_id_gpio, 1);
++                        }
++                }
++        }
++
++        else if(sysfs_streq(buf, "0")){
++                if(otg_caps){
++                        if(otg_caps->select_id_gpio){
++                                printk("usb_udc_switch_id_store - set switching node is 0\n");
++                                gpio_direction_output(otg_caps->select_id_gpio, 0);
++                        }
++                }
++        }
++        else
++                printk("usb_udc_switch_id_store - set error parameter, please set 0 or 1 for switch id\n");
++
++        return n;
++}
++static DEVICE_ATTR(switch_id, S_IRUSR|S_IWUSR, usb_udc_switch_id_show, usb_udc_switch_id_store);
+ /* ------------------------------------------------------------------------- */
+
+ static ssize_t srp_store(struct device *dev,
+@@ -1543,6 +1590,7 @@ static USB_UDC_ATTR(a_alt_hnp_support);
+ static USB_UDC_ATTR(is_selfpowered);
+
+ static struct attribute *usb_udc_attrs[] = {
++	&dev_attr_switch_id.attr,
+ 	&dev_attr_srp.attr,
+ 	&dev_attr_soft_connect.attr,
+ 	&dev_attr_state.attr,
+diff --git a/include/linux/usb/otg.h b/include/linux/usb/otg.h
+index 69f1b6328532..65806d3fedc8 100644
+--- a/include/linux/usb/otg.h
++++ b/include/linux/usb/otg.h
+@@ -55,6 +55,7 @@ struct usb_otg_caps {
+ 	bool hnp_support;
+ 	bool srp_support;
+ 	bool adp_support;
++	int select_id_gpio;
+ };
+
+ extern const char *usb_otg_state_string(enum usb_otg_state state);
+--
+2.17.1
+

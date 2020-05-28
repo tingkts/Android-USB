@@ -1,0 +1,103 @@
+From 9e713f4a6d814c2feb375b4c5d3471227e782914 Mon Sep 17 00:00:00 2001
+From: tingsung <tingsung@msi.com>
+Date: Thu, 28 May 2020 17:39:47 +0800
+Subject: [PATCH] support usb host/otg function switch
+
+- add sepolicy rules of switch_id node
+
+- change UDC to ci_hdrc.0 by system property sys.usb.controller
+
+- add usb host fstab
+
+Change-Id: I999dcb532891bab89095bfaab29c667b7cf58680
+---
+ imx8q/ms5765/fstab.freescale    | 8 ++++++++
+ imx8q/ms5765/init.rc            | 3 +++
+ imx8q/ms5765/init.usb.rc        | 4 +++-
+ imx8q/sepolicy/device.te        | 1 +
+ imx8q/sepolicy/file_contexts    | 3 +++
+ imx8q/sepolicy/system_server.te | 1 +
+ 6 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/imx8q/ms5765/fstab.freescale b/imx8q/ms5765/fstab.freescale
+index 5b3d352..aafe749 100644
+--- a/imx8q/ms5765/fstab.freescale
++++ b/imx8q/ms5765/fstab.freescale
+@@ -3,7 +3,15 @@
+ # The filesystem that contains the filesystem checker binary (typically /system) cannot
+ # specify MF_CHECK, and must come before any filesystems that do specify MF_CHECK
+ 
++# usb port 1
+ /devices/platform/5b0d0000.usb/ci_hdrc.0/* auto auto defaults voldmanaged=usb:auto
++
++# usb port 2
++/devices/platform/5b110000.usb3/* auto auto defaults voldmanaged=usb:auto
++
++# SD card
++/devices/platform/5b020000.usdhc/* auto auto defaults voldmanaged=usb:auto
++
+ /dev/block/by-name/system      /      ext4    ro,barrier=1                                                                           wait,slotselect
+ /dev/block/by-name/userdata    /data        ext4    nosuid,nodev,nodiratime,noatime,nomblk_io_submit,noauto_da_alloc,errors=panic    wait,formattable,quota,fileencryption=software,reservedsize=128M
+ /dev/block/by-name/misc        /misc        emmc    defaults                                                                         defaults
+diff --git a/imx8q/ms5765/init.rc b/imx8q/ms5765/init.rc
+index 67c242f..f29b5fb 100644
+--- a/imx8q/ms5765/init.rc
++++ b/imx8q/ms5765/init.rc
+@@ -51,6 +51,9 @@ on init
+     write /dev/stune/rt/schedtune.boost 50
+     write /dev/stune/rt/schedtune.prefer_idle 1
+ 
++    # Enable USB Slave function
++    chmod 666 /sys/devices/platform/5b0d0000.usb/ci_hdrc.0/udc/ci_hdrc.0/switch_id
++
+ on late-fs
+     # Start keymaster service
+     start vendor.keymaster-3-0-${ro.boot.keystore}
+diff --git a/imx8q/ms5765/init.usb.rc b/imx8q/ms5765/init.usb.rc
+index af4e388..3976329 100644
+--- a/imx8q/ms5765/init.usb.rc
++++ b/imx8q/ms5765/init.usb.rc
+@@ -44,7 +44,9 @@ on early-boot
+     mount functionfs mtp /dev/usb-ffs/mtp rmode=0770,fmode=0660,uid=1024,gid=1024,no_disconnect=1
+     mount functionfs ptp /dev/usb-ffs/ptp rmode=0770,fmode=0660,uid=1024,gid=1024,no_disconnect=1
+     setprop sys.usb.mtp.device_type 3
+-    setprop vendor.usb.config "5b110000.usb3"
++    #setprop vendor.usb.config "5b110000.usb3"
++    setprop vendor.usb.config "ci_hdrc.0"
++    setprop sys.usb.controller "ci_hdrc.0"
+     write /sys/module/libcomposite/parameters/disable_l1_for_hs "y"
+     symlink /config/usb_gadget/g1/configs/b.1 /config/usb_gadget/g1/os_desc/b.1
+ 
+diff --git a/imx8q/sepolicy/device.te b/imx8q/sepolicy/device.te
+index 46aab44..47b0c4f 100644
+--- a/imx8q/sepolicy/device.te
++++ b/imx8q/sepolicy/device.te
+@@ -8,3 +8,4 @@ type sysfs_block_devices, sysfs_type, fs_type;
+ type diag_device, dev_type, mlstrustedobject;
+ type mmc_rpmb_char_device, dev_type;
+ type latency_device, dev_type;
++type usb_switch_file, fs_type, sysfs_type;
+\ No newline at end of file
+diff --git a/imx8q/sepolicy/file_contexts b/imx8q/sepolicy/file_contexts
+index 8708a6f..a1daf3b 100644
+--- a/imx8q/sepolicy/file_contexts
++++ b/imx8q/sepolicy/file_contexts
+@@ -88,3 +88,6 @@
+ /vendor/bin/hw/android\.hardware\.dumpstate@1\.0-service\.imx      u:object_r:hal_dumpstate_impl_exec:s0
+ /dev/cpu_dma_latency u:object_r:latency_device:s0
+ /vendor/bin/hw/android\.hardware\.oemlock@1\.0-service\.imx      u:object_r:hal_oemlock_impl_exec:s0
++
++# USB Slave function
++/sys/devices/platform/5b0d0000.usb/ci_hdrc.0/udc/ci_hdrc.0/switch_id u:object_r:usb_switch_file:s0
+diff --git a/imx8q/sepolicy/system_server.te b/imx8q/sepolicy/system_server.te
+index d297f34..c0aeb6d 100644
+--- a/imx8q/sepolicy/system_server.te
++++ b/imx8q/sepolicy/system_server.te
+@@ -29,3 +29,4 @@ allow system_server vendor_configs_file:file { map };
+ allow system_server graphics_device:dir { search };
+ allow system_server graphics_device:chr_file { open read ioctl };
+ allow system_server sysfs_extcon:file { getattr open read };
++allow system_server usb_switch_file:file { getattr open write };
+-- 
+2.7.4
+
