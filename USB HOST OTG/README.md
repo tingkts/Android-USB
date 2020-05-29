@@ -1,10 +1,10 @@
-## USB Controller (UDC)
+## USB Device Controller (UDC)
 
 |    UDC name   | description                                                                                                                                                                                                                                                |
 |-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | CDNS3     | [CDNS3](http://software-dl.ti.com/jacinto7/esd/processor-sdk-linux-jacinto7/latest/exports/docs/linux/Foundational_Components/Kernel/Kernel_Drivers/USB/CDNS3.html) is a SuperSpeed (SS) USB 3.0 Dual-Role-Device (DRD) controller from Cadence |
 | DWC3/DWC2 | The Synopsys DesignWare Core SuperSpeed USB 3.0 Controller (hereinafter referred to as [DWC3](https://www.kernel.org/doc/html/v4.18/driver-api/usb/dwc3.html)) is a USB SuperSpeed compliant controller                                         |
-| ci_udc, ci_hdrc    |                                                                                                                                                                                                                                                 |
+| ci_udc, ci_hdrc    | UDC made by [Chipidea](https://www.google.com/search?q=Chipidea&rlz=1C1GCEU_zh-TWTW892TW892&oq=Chipidea&aqs=chrome..69i57j0l6j69i60.855j0j1&sourceid=chrome&ie=UTF-8) (abbreviation "ci")                                                                                                                                                                                                                                                 |
 
 
 
@@ -35,7 +35,7 @@
 - [USB HOST與 USB OTG的區別及工作原理 - IT閱讀](https://www.itread01.com/content/1541235793.html)
 
   - dualrole device: can be host or slave negotiated by OTG protocol
-  - peripheral only device: acts as salve only
+  - peripheral only device: acts as slave only
 
 ### USB ID Pin : The swith of USB Host or Slave (USB Host or OTG)
 
@@ -50,8 +50,8 @@
     | M | drivers/usb/gadget/udc/core.c | DEVICE_ATTR(select_id): export select_id  |
     | M | fsl-imx8qm-mek.dtsi           | declare select_id gpio pin                |
 
-  - [framework](./patch/usb%20host%20otg%20switch/frameworks.base/0001-Add-for-USB-host-and-device-mode-switch.patch) : read/write switch_id node to switch usb function Host or OTG.
-  - [sepolicy, device config](./patch/usb%20host%20otg%20switch/device.fsl/0001-support-usb-host-otg-function-switch.patch) : add sepolicy and file permission of switch_id node, and change UDC to ci_hdrc.0
+  - [framework](https://github.com/tingkts/Android-USB/blob/master/USB%20HOST%20OTG/patch/usb%20host%20otg%20switch/frameworks.base/0001-Add-for-USB-host-and-device-mode-switch.patch) : read/write switch_id node to switch usb function Host or OTG.
+  - [sepolicy, device config](https://github.com/tingkts/Android-USB/blob/master/USB%20HOST%20OTG/patch/usb%20host%20otg%20switch/device.fsl/0001-support-usb-host-otg-function-switch.patch) : add sepolicy and file permission of switch_id node, and change UDC to ci_hdrc.0
 
 
 
@@ -109,9 +109,9 @@
 
         pinctrl_usbotg1: usbotg1 {
             fsl,pins = <
-                SC_P_USB_SS3_TC0_CONN_USB_OTG1_PWR					0x00000021		// power pin
-                SC_P_USB_SS3_TC2_CONN_USB_OTG1_OC					0x00000021 		// oc pin is Overcurrent protection (過電流保護, 過載保護）
-                SC_P_SPDIF0_EXT_CLK_LSIO_GPIO2_IO16					0x0600004c		// USB ID pin, high(1) is otg(slave), low(1) is host.  // 2*32 + 16 = 80, so gpio2_io16 is equal gpio80.
+                SC_P_USB_SS3_TC0_CONN_USB_OTG1_PWR    0x00000021    // power pin
+                SC_P_USB_SS3_TC2_CONN_USB_OTG1_OC	  0x00000021    // oc pin is Overcurrent protection (過電流保護, 過載保護）
+                SC_P_SPDIF0_EXT_CLK_LSIO_GPIO2_IO16	  0x0600004c    // USB ID pin, high(1) is otg(slave), low(1) is host.  // 2*32 + 16 = 80, so gpio2_io16 is equal gpio80.
             >;
         };
         ```
