@@ -1,0 +1,716 @@
+From dc447f19cf70ce8acbd23a3a90a03fda4ed23c19 Mon Sep 17 00:00:00 2001
+From: tingsung <tingsung@msi.com>
+Date: Tue, 5 May 2020 17:17:05 +0800
+Subject: [PATCH] UUU burn eMMC
+
+---
+ arch/arm/dts/fsl-imx8qm-mek.dts               |  68 +++++---
+ board/freescale/imx8qm_mek/imx8qm_mek.c       |  14 ++
+ configs/imx8qm_ms5765_android_defconfig       |  14 +-
+ .../imx8qm_ms5765_android_trusty_defconfig    | 152 +++++++++++++++++
+ ...765_android_trusty_secure_unlock_defconfig | 153 ++++++++++++++++++
+ configs/imx8qm_ms5765_android_uuu_defconfig   | 135 ++++++++++++++++
+ drivers/usb/gadget/ci_udc.c                   |   6 +-
+ include/configs/imx8qm_mek.h                  |   4 +-
+ include/configs/imx8qm_mek_android.h          |   2 +-
+ 9 files changed, 513 insertions(+), 35 deletions(-)
+ create mode 100644 configs/imx8qm_ms5765_android_trusty_defconfig
+ create mode 100644 configs/imx8qm_ms5765_android_trusty_secure_unlock_defconfig
+ create mode 100644 configs/imx8qm_ms5765_android_uuu_defconfig
+
+diff --git a/arch/arm/dts/fsl-imx8qm-mek.dts b/arch/arm/dts/fsl-imx8qm-mek.dts
+index c83ca3c610..c4fa76bcd1 100644
+--- a/arch/arm/dts/fsl-imx8qm-mek.dts
++++ b/arch/arm/dts/fsl-imx8qm-mek.dts
+@@ -44,6 +44,15 @@
+ 			enable-active-high;
+ 		};
+ 
++		reg_usb_otg1_id: usb_otg1_id {
++			compatible = "regulator-fixed";
++			regulator-name = "usb_otg1_id";
++			regulator-min-microvolt = <3300000>;
++			regulator-max-microvolt = <3300000>;
++			gpio = <&gpio2 16 GPIO_ACTIVE_HIGH>;
++			enable-active-high;
++		};
++
+ 		reg_usdhc2_vmmc: usdhc2_vmmc {
+ 			compatible = "regulator-fixed";
+ 			regulator-name = "sw-3p3-sd1";
+@@ -67,6 +76,14 @@
+ 			enable-active-high;
+ 		};
+ 	};
++
++	usbg1: usbg1 {
++		compatible = "fsl,imx27-usb-gadget";
++		dr_mode = "peripheral";
++		chipidea,usb = <&usbotg1>;
++		status = "okay";
++		u-boot,dm-spl;
++	};
+ };
+ 
+ &iomuxc {
+@@ -77,6 +94,7 @@
+ 		pinctrl_hog: hoggrp {
+ 			fsl,pins = <
+ 				SC_P_USB_SS3_TC0_LSIO_GPIO4_IO03	  0x06000048
++				SC_P_SPDIF0_EXT_CLK_LSIO_GPIO2_IO16	  0x0600004c
+ 				SC_P_LVDS0_I2C0_SCL_LSIO_GPIO1_IO06	  0x06000021
+ 				SC_P_LVDS0_I2C0_SDA_LSIO_GPIO1_IO07	  0x06000021
+ 				SC_P_QSPI1A_SS1_B_LSIO_GPIO4_IO20		  0x06000021
+@@ -167,17 +185,19 @@
+ 			>;
+ 		};
+ 
+-		pinctrl_typec: typecgrp {
+-			fsl,pins = <
+-				SC_P_QSPI1A_SS0_B_LSIO_GPIO4_IO19	0x60
+-				SC_P_USB_SS3_TC3_LSIO_GPIO4_IO06	0x60
+-				SC_P_QSPI1A_DATA0_LSIO_GPIO4_IO26	0x00000021
+-			>;
+-		};
++		// pinctrl_typec: typecgrp {
++		// 	fsl,pins = <
++		// 		SC_P_QSPI1A_SS0_B_LSIO_GPIO4_IO19	0x60
++		// 		SC_P_USB_SS3_TC3_LSIO_GPIO4_IO06	0x60
++		// 		SC_P_QSPI1A_DATA0_LSIO_GPIO4_IO26	0x00000021
++		// 	>;
++		// };
+ 
+ 		pinctrl_usbotg1: usbotg1 {
+ 			fsl,pins = <
+ 				SC_P_USB_SS3_TC0_CONN_USB_OTG1_PWR		0x00000021
++				SC_P_USB_SS3_TC2_CONN_USB_OTG1_OC		0x00000021
++				SC_P_SPDIF0_EXT_CLK_LSIO_GPIO2_IO16		0x0600004c
+ 			>;
+ 		};
+ 
+@@ -321,10 +341,14 @@
+ 
+ &usbotg1 {
+ 	vbus-supply = <&reg_usb_otg1_vbus>;
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_usbotg1>;
+ 	srp-disable;
+ 	hnp-disable;
+ 	adp-disable;
++	select_id = <&gpio2 16 1>;
+ 	disable-over-current;
++	power-polarity-active-high;
+ 	status = "okay";
+ };
+ 
+@@ -423,21 +447,21 @@
+ 		#gpio-cells = <2>;
+ 	};
+ 
+-	typec_ptn5110: typec@50 {
+-		compatible = "usb,tcpci";
+-		pinctrl-names = "default";
+-		pinctrl-0 = <&pinctrl_typec>;
+-		reg = <0x51>;
+-		interrupt-parent = <&gpio4>;
+-		interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
+-		ss-sel-gpios = <&gpio4 6 GPIO_ACTIVE_LOW>;
+-		reset-gpios = <&gpio4 19 GPIO_ACTIVE_HIGH>;
+-		src-pdos = <0x380190c8 0x3803c0c8>;
+-		port-type = "drp";
+-		sink-disable;
+-		default-role = "source";
+-		status = "okay";
+-	};
++	// typec_ptn5110: typec@50 {
++	// 	compatible = "usb,tcpci";
++	// 	pinctrl-names = "default";
++	// 	pinctrl-0 = <&pinctrl_typec>;
++	// 	reg = <0x51>;
++	// 	interrupt-parent = <&gpio4>;
++	// 	interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
++	// 	ss-sel-gpios = <&gpio4 6 GPIO_ACTIVE_LOW>;
++	// 	reset-gpios = <&gpio4 19 GPIO_ACTIVE_HIGH>;
++	// 	src-pdos = <0x380190c8 0x3803c0c8>;
++	// 	port-type = "drp";
++	// 	sink-disable;
++	// 	default-role = "source";
++	// 	status = "okay";
++	// };
+ };
+ 
+ &lpuart0 { /* console */
+diff --git a/board/freescale/imx8qm_mek/imx8qm_mek.c b/board/freescale/imx8qm_mek/imx8qm_mek.c
+index 62bec8e46d..96b1de756e 100644
+--- a/board/freescale/imx8qm_mek/imx8qm_mek.c
++++ b/board/freescale/imx8qm_mek/imx8qm_mek.c
+@@ -199,8 +199,22 @@ int board_phy_config(struct phy_device *phydev)
+ #define BB_GPIO_3V3_2 IMX_GPIO_NR(4, 24)
+ #define BB_GPIO_3V3_3 IMX_GPIO_NR(4, 23)
+ 
++//Add by fred for usb otg1 id pin init+++
++#define BB_GPIO_OTG1_ID IMX_GPIO_NR(2, 16)
++
++static iomux_cfg_t usb_otg_id_gpio[] = {
++	SC_P_SPDIF0_EXT_CLK | MUX_PAD_CTRL(GPIO_PAD_CTRL),
++};
++//Add by fred for usb otg1 id pin init---
++
+ static void board_gpio_init(void)
+ {
++	//Add by fred for usb otg1 id pin init+++
++	imx8_iomux_setup_multiple_pads(usb_otg_id_gpio, ARRAY_SIZE(usb_otg_id_gpio));
++	gpio_request(BB_GPIO_OTG1_ID, "bb_otg1_id");
++	gpio_direction_output(BB_GPIO_OTG1_ID, 1);
++	//Add by fred for usb otg1 id pin init---
++
+ 	/* Enable BB 3V3 */
+ 	gpio_request(BB_GPIO_3V3_1, "bb_3v3_1");
+ 	gpio_direction_output(BB_GPIO_3V3_1, 1);
+diff --git a/configs/imx8qm_ms5765_android_defconfig b/configs/imx8qm_ms5765_android_defconfig
+index ca13127a1f..afceb1ceec 100644
+--- a/configs/imx8qm_ms5765_android_defconfig
++++ b/configs/imx8qm_ms5765_android_defconfig
+@@ -109,21 +109,21 @@ CONFIG_SF_DEFAULT_CS=0
+ CONFIG_SF_DEFAULT_SPEED=40000000
+ CONFIG_SF_DEFAULT_MODE=0
+ 
+-CONFIG_USB_XHCI_HCD=y
+-CONFIG_USB_XHCI_IMX8=y
++# CONFIG_USB_XHCI_HCD is not set
++# CONFIG_USB_XHCI_IMX8 is not set
+ CONFIG_DM_USB=y
+ CONFIG_DM_USB_GADGET=y
+ CONFIG_SPL_DM_USB_GADGET=y
+ CONFIG_USB=y
+-CONFIG_USB_TCPC=y
++# CONFIG_USB_TCPC=y
+ CONFIG_USB_GADGET=y
+-# CONFIG_CI_UDC=y
++CONFIG_CI_UDC=y
+ CONFIG_USB_GADGET_DOWNLOAD=y
+ CONFIG_USB_GADGET_MANUFACTURER="FSL"
+ CONFIG_USB_GADGET_VENDOR_NUM=0x0525
+ CONFIG_USB_GADGET_PRODUCT_NUM=0xa4a5
+-CONFIG_USB_CDNS3=y
+-CONFIG_USB_CDNS3_GADGET=y
++# CONFIG_USB_CDNS3 is not set
++# CONFIG_USB_CDNS3_GADGET is not set
+ CONFIG_USB_GADGET_DUALSPEED=y
+ 
+ CONFIG_SPL_USB_GADGET=y
+@@ -140,7 +140,7 @@ CONFIG_FSL_FASTBOOT=y
+ CONFIG_FASTBOOT_BUF_ADDR=0x98000000
+ CONFIG_FASTBOOT_BUF_SIZE=0x19000000
+ CONFIG_FASTBOOT_FLASH=y
+-CONFIG_FASTBOOT_USB_DEV=1
++# CONFIG_FASTBOOT_USB_DEV=1
+ 
+ CONFIG_BOOTAUX_RESERVED_MEM_BASE=0x88000000
+ CONFIG_BOOTAUX_RESERVED_MEM_SIZE=0x01000000
+diff --git a/configs/imx8qm_ms5765_android_trusty_defconfig b/configs/imx8qm_ms5765_android_trusty_defconfig
+new file mode 100644
+index 0000000000..60ec8bd11e
+--- /dev/null
++++ b/configs/imx8qm_ms5765_android_trusty_defconfig
+@@ -0,0 +1,152 @@
++CONFIG_ARM=y
++CONFIG_ARCH_IMX8=y
++CONFIG_SYS_TEXT_BASE=0x80020000
++CONFIG_SPL_GPIO_SUPPORT=y
++CONFIG_SPL_LIBCOMMON_SUPPORT=y
++CONFIG_SPL_LIBGENERIC_SUPPORT=y
++CONFIG_SYS_MALLOC_F_LEN=0x8000
++CONFIG_TARGET_IMX8QM_MEK=y
++CONFIG_SPL_MMC_SUPPORT=y
++CONFIG_SPL_EFI_PARTITION=n
++CONFIG_SPL_DOS_PARTITION=n
++CONFIG_SPL_DM_SEQ_ALIAS=y
++CONFIG_SPL_SERIAL_SUPPORT=y
++CONFIG_SPL_DRIVERS_MISC_SUPPORT=y
++CONFIG_USE_TINY_PRINTF=y
++CONFIG_SPL=y
++CONFIG_PANIC_HANG=y
++CONFIG_NR_DRAM_BANKS=4
++CONFIG_FIT=y
++CONFIG_SYS_EXTRA_OPTIONS="IMX_CONFIG=board/freescale/imx8qm_mek/imximage.cfg,ANDROID_SUPPORT"
++CONFIG_BOOTDELAY=1
++CONFIG_LOG=y
++CONFIG_SPL_BOARD_INIT=y
++# CONFIG_SPL_SYS_MALLOC_SIMPLE is not set
++CONFIG_SPL_SEPARATE_BSS=y
++CONFIG_SPL_POWER_SUPPORT=y
++CONFIG_SPL_POWER_DOMAIN=y
++CONFIG_SPL_WATCHDOG_SUPPORT=y
++CONFIG_HUSH_PARSER=y
++CONFIG_CMD_CPU=y
++# CONFIG_CMD_IMPORTENV is not set
++CONFIG_CMD_CLK=y
++CONFIG_CMD_DM=y
++CONFIG_CMD_GPIO=y
++CONFIG_CMD_I2C=y
++CONFIG_CMD_MMC=y
++CONFIG_CMD_DHCP=y
++CONFIG_CMD_MII=y
++CONFIG_CMD_PING=y
++CONFIG_CMD_CACHE=y
++CONFIG_CMD_FAT=y
++CONFIG_SPL_OF_CONTROL=y
++CONFIG_DEFAULT_DEVICE_TREE="fsl-imx8qm-mek"
++CONFIG_ENV_IS_IN_MMC=y
++CONFIG_SPL_DM=y
++CONFIG_SPL_CLK=y
++CONFIG_CLK_IMX8=y
++CONFIG_CPU=y
++CONFIG_DM_GPIO=y
++CONFIG_MXC_GPIO=y
++CONFIG_DM_PCA953X=y
++CONFIG_DM_I2C=y
++CONFIG_SYS_I2C_IMX_LPI2C=y
++CONFIG_I2C_MUX=y
++CONFIG_I2C_MUX_PCA954x=y
++CONFIG_MISC=y
++CONFIG_DM_MMC=y
++CONFIG_MMC_IO_VOLTAGE=y
++# CONFIG_MMC_UHS_SUPPORT=y
++# CONFIG_MMC_HS400_SUPPORT=y
++CONFIG_EFI_PARTITION=y
++CONFIG_PHYLIB=y
++CONFIG_PHY_ADDR_ENABLE=y
++CONFIG_PHY_ATHEROS=y
++CONFIG_DM_ETH=y
++CONFIG_PHY_GIGE=y
++CONFIG_FEC_MXC_SHARE_MDIO=y
++CONFIG_FEC_MXC_MDIO_BASE=0x5B040000
++CONFIG_FEC_MXC=y
++CONFIG_MII=y
++CONFIG_PINCTRL=y
++CONFIG_SPL_PINCTRL=y
++CONFIG_PINCTRL_IMX8=y
++CONFIG_POWER_DOMAIN=y
++CONFIG_IMX8_POWER_DOMAIN=y
++CONFIG_DM_REGULATOR=y
++CONFIG_SPL_DM_REGULATOR=y
++CONFIG_DM_REGULATOR_FIXED=y
++CONFIG_DM_REGULATOR_GPIO=y
++CONFIG_SPL_DM_REGULATOR_FIXED=y
++CONFIG_DM_SERIAL=y
++CONFIG_FSL_LPUART=y
++CONFIG_SPL_TINY_MEMSET=y
++# CONFIG_EFI_LOADER is not set
++
++CONFIG_CMD_FUSE=y
++CONFIG_SMC_FUSE=y
++CONFIG_CMD_MEMTEST=y
++
++CONFIG_IMX_BOOTAUX=y
++
++CONFIG_DM_THERMAL=y
++CONFIG_IMX_SC_THERMAL=y
++
++CONFIG_VIDEO=y
++CONFIG_VIDEO_IMX_HDP_LOAD=y
++CONFIG_IMX_LOAD_HDMI_FIMRWARE=y
++
++CONFIG_SPI=y
++CONFIG_FSL_FSPI=y
++CONFIG_DM_SPI=y
++CONFIG_DM_SPI_FLASH=y
++CONFIG_SPI_FLASH=y
++CONFIG_SPI_FLASH_STMICRO=y
++CONFIG_CMD_SF=y
++CONFIG_SF_DEFAULT_BUS=0
++CONFIG_SF_DEFAULT_CS=0
++CONFIG_SF_DEFAULT_SPEED=40000000
++CONFIG_SF_DEFAULT_MODE=0
++
++# CONFIG_USB_XHCI_HCD=y
++# CONFIG_USB_XHCI_IMX8=y
++CONFIG_DM_USB=y
++CONFIG_DM_USB_GADGET=y
++CONFIG_SPL_DM_USB_GADGET=y
++CONFIG_USB=y
++# CONFIG_USB_TCPC=y
++CONFIG_USB_GADGET=y
++CONFIG_CI_UDC=y
++CONFIG_USB_GADGET_DOWNLOAD=y
++CONFIG_USB_GADGET_MANUFACTURER="FSL"
++CONFIG_USB_GADGET_VENDOR_NUM=0x0525
++CONFIG_USB_GADGET_PRODUCT_NUM=0xa4a5
++# CONFIG_USB_CDNS3=y
++# CONFIG_USB_CDNS3_GADGET=y
++CONFIG_USB_GADGET_DUALSPEED=y
++
++CONFIG_SPL_USB_GADGET=y
++CONFIG_SPL_USB_SDP_SUPPORT=y
++CONFIG_SPL_SDP_USB_DEV=1
++CONFIG_SDP_LOADADDR=0x80400000
++
++CONFIG_FASTBOOT=y
++CONFIG_USB_FUNCTION_FASTBOOT=y
++CONFIG_CMD_FASTBOOT=y
++CONFIG_ANDROID_BOOT_IMAGE=y
++CONFIG_FASTBOOT_UUU_SUPPORT=n
++CONFIG_FSL_FASTBOOT=y
++CONFIG_FASTBOOT_BUF_ADDR=0x98000000
++CONFIG_FASTBOOT_BUF_SIZE=0x19000000
++CONFIG_FASTBOOT_FLASH=y
++# CONFIG_FASTBOOT_USB_DEV=1
++
++CONFIG_BOOTAUX_RESERVED_MEM_BASE=0x88000000
++CONFIG_BOOTAUX_RESERVED_MEM_SIZE=0x01000000
++
++CONFIG_LZ4=y
++CONFIG_APPEND_BOOTARGS=y
++CONFIG_LIBAVB=y
++CONFIG_IMX_TRUSTY_OS=y
++CONFIG_CMD_MMC_RPMB=y
++CONFIG_TRUSTY_UNLOCK_PERMISSION=y
+diff --git a/configs/imx8qm_ms5765_android_trusty_secure_unlock_defconfig b/configs/imx8qm_ms5765_android_trusty_secure_unlock_defconfig
+new file mode 100644
+index 0000000000..1cd2df336a
+--- /dev/null
++++ b/configs/imx8qm_ms5765_android_trusty_secure_unlock_defconfig
+@@ -0,0 +1,153 @@
++CONFIG_ARM=y
++CONFIG_ARCH_IMX8=y
++CONFIG_SYS_TEXT_BASE=0x80020000
++CONFIG_SPL_GPIO_SUPPORT=y
++CONFIG_SPL_LIBCOMMON_SUPPORT=y
++CONFIG_SPL_LIBGENERIC_SUPPORT=y
++CONFIG_SYS_MALLOC_F_LEN=0x8000
++CONFIG_TARGET_IMX8QM_MEK=y
++CONFIG_SPL_MMC_SUPPORT=y
++CONFIG_SPL_EFI_PARTITION=n
++CONFIG_SPL_DOS_PARTITION=n
++CONFIG_SPL_DM_SEQ_ALIAS=y
++CONFIG_SPL_SERIAL_SUPPORT=y
++CONFIG_SPL_DRIVERS_MISC_SUPPORT=y
++CONFIG_USE_TINY_PRINTF=y
++CONFIG_SPL=y
++CONFIG_PANIC_HANG=y
++CONFIG_NR_DRAM_BANKS=4
++CONFIG_FIT=y
++CONFIG_SYS_EXTRA_OPTIONS="IMX_CONFIG=board/freescale/imx8qm_mek/imximage.cfg,ANDROID_SUPPORT"
++CONFIG_BOOTDELAY=1
++CONFIG_LOG=y
++CONFIG_SPL_BOARD_INIT=y
++# CONFIG_SPL_SYS_MALLOC_SIMPLE is not set
++CONFIG_SPL_SEPARATE_BSS=y
++CONFIG_SPL_POWER_SUPPORT=y
++CONFIG_SPL_POWER_DOMAIN=y
++CONFIG_SPL_WATCHDOG_SUPPORT=y
++CONFIG_HUSH_PARSER=y
++CONFIG_CMD_CPU=y
++# CONFIG_CMD_IMPORTENV is not set
++CONFIG_CMD_CLK=y
++CONFIG_CMD_DM=y
++CONFIG_CMD_GPIO=y
++CONFIG_CMD_I2C=y
++CONFIG_CMD_MMC=y
++CONFIG_CMD_DHCP=y
++CONFIG_CMD_MII=y
++CONFIG_CMD_PING=y
++CONFIG_CMD_CACHE=y
++CONFIG_CMD_FAT=y
++CONFIG_SPL_OF_CONTROL=y
++CONFIG_DEFAULT_DEVICE_TREE="fsl-imx8qm-mek"
++CONFIG_ENV_IS_IN_MMC=y
++CONFIG_SPL_DM=y
++CONFIG_SPL_CLK=y
++CONFIG_CLK_IMX8=y
++CONFIG_CPU=y
++CONFIG_DM_GPIO=y
++CONFIG_MXC_GPIO=y
++CONFIG_DM_PCA953X=y
++CONFIG_DM_I2C=y
++CONFIG_SYS_I2C_IMX_LPI2C=y
++CONFIG_I2C_MUX=y
++CONFIG_I2C_MUX_PCA954x=y
++CONFIG_MISC=y
++CONFIG_DM_MMC=y
++CONFIG_MMC_IO_VOLTAGE=y
++# CONFIG_MMC_UHS_SUPPORT=y
++# CONFIG_MMC_HS400_SUPPORT=y
++CONFIG_EFI_PARTITION=y
++CONFIG_PHYLIB=y
++CONFIG_PHY_ADDR_ENABLE=y
++CONFIG_PHY_ATHEROS=y
++CONFIG_DM_ETH=y
++CONFIG_PHY_GIGE=y
++CONFIG_FEC_MXC_SHARE_MDIO=y
++CONFIG_FEC_MXC_MDIO_BASE=0x5B040000
++CONFIG_FEC_MXC=y
++CONFIG_MII=y
++CONFIG_PINCTRL=y
++CONFIG_SPL_PINCTRL=y
++CONFIG_PINCTRL_IMX8=y
++CONFIG_POWER_DOMAIN=y
++CONFIG_IMX8_POWER_DOMAIN=y
++CONFIG_DM_REGULATOR=y
++CONFIG_SPL_DM_REGULATOR=y
++CONFIG_DM_REGULATOR_FIXED=y
++CONFIG_DM_REGULATOR_GPIO=y
++CONFIG_SPL_DM_REGULATOR_FIXED=y
++CONFIG_DM_SERIAL=y
++CONFIG_FSL_LPUART=y
++CONFIG_SPL_TINY_MEMSET=y
++# CONFIG_EFI_LOADER is not set
++
++CONFIG_CMD_FUSE=y
++CONFIG_SMC_FUSE=y
++CONFIG_CMD_MEMTEST=y
++
++CONFIG_IMX_BOOTAUX=y
++
++CONFIG_DM_THERMAL=y
++CONFIG_IMX_SC_THERMAL=y
++
++CONFIG_VIDEO=y
++CONFIG_VIDEO_IMX_HDP_LOAD=y
++CONFIG_IMX_LOAD_HDMI_FIMRWARE=y
++
++CONFIG_SPI=y
++CONFIG_FSL_FSPI=y
++CONFIG_DM_SPI=y
++CONFIG_DM_SPI_FLASH=y
++CONFIG_SPI_FLASH=y
++CONFIG_SPI_FLASH_STMICRO=y
++CONFIG_CMD_SF=y
++CONFIG_SF_DEFAULT_BUS=0
++CONFIG_SF_DEFAULT_CS=0
++CONFIG_SF_DEFAULT_SPEED=40000000
++CONFIG_SF_DEFAULT_MODE=0
++
++# CONFIG_USB_XHCI_HCD=y
++# CONFIG_USB_XHCI_IMX8=y
++CONFIG_DM_USB=y
++CONFIG_DM_USB_GADGET=y
++CONFIG_SPL_DM_USB_GADGET=y
++CONFIG_USB=y
++# CONFIG_USB_TCPC=y
++CONFIG_USB_GADGET=y
++CONFIG_CI_UDC=y
++CONFIG_USB_GADGET_DOWNLOAD=y
++CONFIG_USB_GADGET_MANUFACTURER="FSL"
++CONFIG_USB_GADGET_VENDOR_NUM=0x0525
++CONFIG_USB_GADGET_PRODUCT_NUM=0xa4a5
++# CONFIG_USB_CDNS3=y
++# CONFIG_USB_CDNS3_GADGET=y
++CONFIG_USB_GADGET_DUALSPEED=y
++
++CONFIG_SPL_USB_GADGET=y
++CONFIG_SPL_USB_SDP_SUPPORT=y
++CONFIG_SPL_SDP_USB_DEV=1
++CONFIG_SDP_LOADADDR=0x80400000
++
++CONFIG_FASTBOOT=y
++CONFIG_USB_FUNCTION_FASTBOOT=y
++CONFIG_CMD_FASTBOOT=y
++CONFIG_ANDROID_BOOT_IMAGE=y
++CONFIG_FASTBOOT_UUU_SUPPORT=n
++CONFIG_FSL_FASTBOOT=y
++CONFIG_FASTBOOT_BUF_ADDR=0x98000000
++CONFIG_FASTBOOT_BUF_SIZE=0x19000000
++CONFIG_FASTBOOT_FLASH=y
++# CONFIG_FASTBOOT_USB_DEV=1
++
++CONFIG_BOOTAUX_RESERVED_MEM_BASE=0x88000000
++CONFIG_BOOTAUX_RESERVED_MEM_SIZE=0x01000000
++
++CONFIG_LZ4=y
++CONFIG_APPEND_BOOTARGS=y
++CONFIG_LIBAVB=y
++CONFIG_IMX_TRUSTY_OS=y
++CONFIG_SECURE_UNLOCK=y
++CONFIG_CMD_MMC_RPMB=y
++CONFIG_TRUSTY_UNLOCK_PERMISSION=y
+diff --git a/configs/imx8qm_ms5765_android_uuu_defconfig b/configs/imx8qm_ms5765_android_uuu_defconfig
+new file mode 100644
+index 0000000000..660d994fe0
+--- /dev/null
++++ b/configs/imx8qm_ms5765_android_uuu_defconfig
+@@ -0,0 +1,135 @@
++CONFIG_ARM=y
++CONFIG_ARCH_IMX8=y
++CONFIG_DEFAULT_DEVICE_TREE="fsl-imx8qm-mek"
++CONFIG_SYS_EXTRA_OPTIONS="ANDROID_SUPPORT"
++CONFIG_TARGET_IMX8QM_MEK=y
++CONFIG_SYS_TEXT_BASE=0x80020000
++CONFIG_EFI_PARTITION=y
++CONFIG_CMD_IMPORTENV=n
++CONFIG_SYS_MALLOC_F_LEN=0x8000
++CONFIG_DM=y
++CONFIG_CMD_CACHE=y
++CONFIG_CPU=y
++CONFIG_MISC=y
++CONFIG_USE_TINY_PRINTF=y
++CONFIG_LOG=y
++CONFIG_HUSH_PARSER=y
++CONFIG_CMD_CPU=y
++CONFIG_CMD_CLK=y
++CONFIG_CMD_DM=y
++CONFIG_CMD_DHCP=y
++CONFIG_CMD_MII=y
++CONFIG_CMD_PING=y
++CONFIG_CLK_IMX8=y
++CONFIG_MXC_GPIO=y
++
++CONFIG_PHYLIB=y
++CONFIG_PHY_ADDR_ENABLE=y
++CONFIG_PHY_ATHEROS=y
++CONFIG_DM_ETH=y
++CONFIG_PHY_GIGE=y
++CONFIG_FEC_MXC_SHARE_MDIO=y
++CONFIG_FEC_MXC_MDIO_BASE=0x5B040000
++CONFIG_FEC_MXC=y
++CONFIG_MII=y
++
++CONFIG_DM_SERIAL=y
++CONFIG_FSL_LPUART=y
++CONFIG_OF_CONTROL=y
++CONFIG_DM_I2C=y
++# CONFIG_DM_I2C_COMPAT is not set
++CONFIG_SYS_I2C_IMX_LPI2C=y
++CONFIG_CMD_I2C=y
++CONFIG_I2C_MUX=y
++CONFIG_I2C_MUX_PCA954x=y
++
++# CONFIG_USB_XHCI_HCD is not set
++# CONFIG_USB_XHCI_IMX8 is not set
++
++CONFIG_DM_USB=y
++CONFIG_DM_USB_GADGET=y
++CONFIG_USB=y
++# CONFIG_USB_TCPC=y
++
++CONFIG_USB_GADGET=y
++CONFIG_CI_UDC=y
++CONFIG_USB_GADGET_DOWNLOAD=y
++CONFIG_USB_GADGET_MANUFACTURER="FSL"
++CONFIG_USB_GADGET_VENDOR_NUM=0x0525
++CONFIG_USB_GADGET_PRODUCT_NUM=0xa4a5
++# CONFIG_USB_CDNS3 is not set
++# CONFIG_USB_CDNS3_GADGET is not set
++CONFIG_USB_GADGET_DUALSPEED=y
++CONFIG_SDP_LOADADDR=0x80400000
++
++CONFIG_CMD_GPIO=y
++CONFIG_DM_GPIO=y
++CONFIG_DM_PCA953X=y
++CONFIG_BOOTDELAY=1
++CONFIG_IMX_BOOTAUX=y
++CONFIG_FS_FAT=y
++CONFIG_CMD_FAT=y
++CONFIG_CMD_MMC=y
++CONFIG_DM_MMC=y
++CONFIG_MMC_IO_VOLTAGE=y
++# CONFIG_MMC_UHS_SUPPORT is not set
++# CONFIG_MMC_HS400_SUPPORT is not set
++
++# CONFIG_EFI_LOADER is not set
++
++CONFIG_DM_REGULATOR=y
++CONFIG_DM_REGULATOR_FIXED=y
++CONFIG_DM_REGULATOR_GPIO=y
++
++CONFIG_VIDEO=y
++CONFIG_VIDEO_IMX_HDP_LOAD=y
++
++CONFIG_PINCTRL=y
++CONFIG_PINCTRL_IMX8=y
++
++CONFIG_POWER_DOMAIN=y
++CONFIG_IMX8_POWER_DOMAIN=y
++
++CONFIG_DM_THERMAL=y
++CONFIG_IMX_SC_THERMAL=y
++
++CONFIG_ENV_IS_IN_MMC=y
++CONFIG_LZ4=y
++
++CONFIG_CMD_FUSE=y
++CONFIG_SMC_FUSE=y
++CONFIG_CMD_MEMTEST=y
++
++CONFIG_SPI=y
++CONFIG_FSL_FSPI=y
++CONFIG_DM_SPI=y
++CONFIG_DM_SPI_FLASH=y
++CONFIG_SPI_FLASH=y
++CONFIG_SPI_FLASH_STMICRO=y
++CONFIG_SPI_FLASH_4BYTES_ADDR=y
++CONFIG_CMD_SF=y
++CONFIG_SF_DEFAULT_BUS=0
++CONFIG_SF_DEFAULT_CS=0
++CONFIG_SF_DEFAULT_SPEED=40000000
++CONFIG_SF_DEFAULT_MODE=0
++
++
++CONFIG_FASTBOOT=y
++CONFIG_USB_FUNCTION_FASTBOOT=y
++CONFIG_CMD_FASTBOOT=y
++CONFIG_ANDROID_BOOT_IMAGE=y
++CONFIG_FASTBOOT_UUU_SUPPORT=y
++CONFIG_FASTBOOT_BUF_ADDR=0x98000000
++CONFIG_FASTBOOT_BUF_SIZE=0x19000000
++CONFIG_FASTBOOT_FLASH=y
++# CONFIG_FASTBOOT_USB_DEV=1
++
++CONFIG_SYS_I2C_IMX_VIRT_I2C=y
++CONFIG_I2C_MUX_IMX_VIRT=y
++CONFIG_IMX_VSERVICE_SHARED_BUFFER=0x90000000
++
++CONFIG_BOOTAUX_RESERVED_MEM_BASE=0x88000000
++CONFIG_BOOTAUX_RESERVED_MEM_SIZE=0x08000000
++
++CONFIG_LIBAVB=y
++CONFIG_CMD_MMC_RPMB=y
+diff --git a/drivers/usb/gadget/ci_udc.c b/drivers/usb/gadget/ci_udc.c
+index 1df99325a5..76d42632dd 100644
+--- a/drivers/usb/gadget/ci_udc.c
++++ b/drivers/usb/gadget/ci_udc.c
+@@ -1309,9 +1309,9 @@ static int ci_udc_otg_probe(struct udevice *dev)
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = ehci_mx6_common_init(ehci, dev->seq);
+-	if (ret)
+-		return ret;
++	// ret = ehci_mx6_common_init(ehci, dev->seq);
++	// if (ret)
++	// 	return ret;
+ 
+ 	if (ci_udc_otg_phy_mode(dev) != USB_INIT_DEVICE)
+ 		return -ENODEV;
+diff --git a/include/configs/imx8qm_mek.h b/include/configs/imx8qm_mek.h
+index edca76addf..78b862a342 100644
+--- a/include/configs/imx8qm_mek.h
++++ b/include/configs/imx8qm_mek.h
+@@ -77,8 +77,8 @@
+ #define CONFIG_ENV_OVERWRITE
+ 
+ #define CONFIG_PCIE_IMX
+-#define CONFIG_CMD_PCI
+-#define CONFIG_PCI_SCAN_SHOW
++//#define CONFIG_CMD_PCI
++//#define CONFIG_PCI_SCAN_SHOW
+ 
+ #define CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
+ 
+diff --git a/include/configs/imx8qm_mek_android.h b/include/configs/imx8qm_mek_android.h
+index 10b334da41..8a913251e5 100644
+--- a/include/configs/imx8qm_mek_android.h
++++ b/include/configs/imx8qm_mek_android.h
+@@ -45,7 +45,7 @@
+ 
+ 
+ 
+-#define CONFIG_FASTBOOT_USB_DEV 1
++//#define CONFIG_FASTBOOT_USB_DEV 1
+ #define CONFIG_ANDROID_RECOVERY
+ 
+ #define CONFIG_CMD_BOOTA
+-- 
+2.17.1
+
