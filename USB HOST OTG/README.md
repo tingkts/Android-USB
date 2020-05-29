@@ -69,7 +69,7 @@
     if disable adb debug, usb port 1 & 2 both work as USB Host;<br>
     else if enable adb debug, usb port 1 works as USB OTG, usb port 2 works as USB Host.
 
-### DTS & pinctrl
+### DTS & pinctrl, Driver
 
 - dts :
 
@@ -163,7 +163,7 @@
 
 
 
-- pin definition :
+- pinctrl (pin definition):
 
     ```
     // GPIO mapping table
@@ -194,8 +194,34 @@
     ```
 
 
-### Driver
+- Driver
 
+    ```
+    // drivers/usb/chipidea/ci_hdrc_imx.c:105:	{ .compatible = "fsl,imx27-usb", .data = &imx27_usb_data},
+    // drivers/usb/chipidea/ci_hdrc_imx.c:105:	{ .compatible = "fsl,imx8qm-usb", .data = &imx8qm_usb_data}
+
+    static const struct of_device_id ci_hdrc_imx_dt_ids[] = {
+    	{ .compatible = "fsl,imx23-usb", .data = &imx23_usb_data},
+    	{ .compatible = "fsl,imx28-usb", .data = &imx28_usb_data},
+    	{ .compatible = "fsl,imx27-usb", .data = &imx27_usb_data},
+    	{ .compatible = "fsl,imx6q-usb", .data = &imx6q_usb_data},
+    	{ .compatible = "fsl,imx6sl-usb", .data = &imx6sl_usb_data},
+    	{ .compatible = "fsl,imx6sx-usb", .data = &imx6sx_usb_data},
+    	{ .compatible = "fsl,imx6ul-usb", .data = &imx6ul_usb_data},
+    	{ .compatible = "fsl,imx7d-usb", .data = &imx7d_usb_data},
+    	{ .compatible = "fsl,imx7ulp-usb", .data = &imx7ulp_usb_data},
+    	{ .compatible = "fsl,imx8mm-usb", .data = &imx8mm_usb_data},
+    	{ .compatible = "fsl,imx8qm-usb", .data = &imx8qm_usb_data},
+    	{ /* sentinel */ }
+    };
+
+    // drivers/usb/cdns3/core.c:763:	{ .compatible = "Cadence,usb3" },
+
+    static const struct of_device_id of_cdns3_match[] = {
+    	{ .compatible = "Cadence,usb3" },
+    	{ },
+    };
+    ```
 
 <br>
 
@@ -233,6 +259,33 @@
       ```
     - comment out "CONFIG_FASTBOOT_USB_DEV=1" to let it use the default value of 0
 
+
+<br>
+
+## Misc.
+
+- Kconfig syntax :
+
+  ```
+  // if enable CONFIG_DM_USB_GADGET, CONFIG_DM_USB must be enabled first.
+  config DM_USB_GADGET
+  	bool "Enable driver model for USB Gadget"
+  	depends on DM_USB
+  	help
+  	  Enable driver model for USB Gadget (Peripheral
+  	  mode)
+
+  // if enable CONFIG_CU_UDC, then CONFIG_USB_GADGET_DUALSPEED and CONFIG_DM_USB_GADGET are both enabled.
+  config CI_UDC
+  	bool "ChipIdea device controller"
+  	select USB_GADGET_DUALSPEED
+  	imply DM_USB_GADGET
+  	help
+  	  Say Y here to enable device controller functionality of the
+  	  ChipIdea driver.
+  ```
+
+-
 
 
 <br>
