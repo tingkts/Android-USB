@@ -285,7 +285,28 @@
   	  ChipIdea driver.
   ```
 
--
+- out :
+
+  ```
+  out\target\product\ms5765\obj\KERNEL_OBJ
+      .config
+
+      arch\arm64\boot\dts\freescale\fsl-imx8qm-mek.dtb
+
+      drivers\usb
+
+
+  out\target\product\ms5765\obj\UBOOT_OBJ
+
+      .config
+
+      u-boot.cfg
+      u-boot.cfg.configs
+
+      dts\dt.dtb
+
+      drivers\usb
+  ```
 
 
 <br>
