@@ -294,7 +294,7 @@
 
         arch/arm64/boot/dts/freescale/fsl-imx8qm-mek.dtb
 
-        drivers/usb
+        drivers/usb/built-in.a	// a list of built-in modules
 
 
     // u-boot
