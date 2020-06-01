@@ -69,7 +69,7 @@
     if disable adb debug, usb port 1 & 2 both work as USB Host;<br>
     else if enable adb debug, usb port 1 works as USB OTG, usb port 2 works as USB Host.
 
-### DTS & pinctrl, Driver
+### DTS & pinctrl, driver
 
 - dts :
 
@@ -194,7 +194,7 @@
     ```
 
 
-- Driver
+- driver
 
     ```
     // drivers/usb/chipidea/ci_hdrc_imx.c:105:	{ .compatible = "fsl,imx27-usb", .data = &imx27_usb_data},
@@ -227,7 +227,7 @@
 
 ## UUU refresh eMMMC
 
-- patch of [uboot](./patch/uuu%20refresh%20eMMC/vendor.nxp-opensource.uboot-imx/0001-UUU-burn-eMMC.patch):
+- patch of [uboot](./patch/uuu%20refresh%20eMMC/vendor.nxp-opensource.uboot-imx/0001-UUU-burn-eMMC.patch) :
 
     - pull high usb id pin
       ```
@@ -259,7 +259,7 @@
       ```
     - comment out "CONFIG_FASTBOOT_USB_DEV=1" to let it use the default value of 0
 
-- [uboot-imx](https://github.com/Freescale/u-boot-fslc):
+- [uboot-imx](https://github.com/Freescale/u-boot-fslc) :
   - [cmd/fastboot.c](https://github.com/Freescale/u-boot-fslc/blob/2020.04%2Bfslc/cmd/fastboot.c)
 
    ```
