@@ -109,7 +109,7 @@
 
         pinctrl_usbotg1: usbotg1 {
             fsl,pins = <
-                SC_P_USB_SS3_TC0_CONN_USB_OTG1_PWR    0x00000021    // power pin
+                SC_P_USB_SS3_TC0_CONN_USB_OTG1_PWR        0x00000021    // power pin
                 SC_P_USB_SS3_TC2_CONN_USB_OTG1_OC	  0x00000021    // oc pin is Overcurrent protection (過電流保護, 過載保護）
                 SC_P_SPDIF0_EXT_CLK_LSIO_GPIO2_IO16	  0x0600004c    // USB ID pin, high(1) is otg(slave), low(1) is host.  // 2*32 + 16 = 80, so gpio2_io16 is equal gpio80.
             >;
@@ -155,8 +155,8 @@
 
         pinctrl_usbh1: usbh1 {
             fsl,pins = <
-                SC_P_USB_SS3_TC1_CONN_USB_OTG2_PWR					0x00000021
-                SC_P_USB_SS3_TC3_CONN_USB_OTG2_OC					0x00000021
+                SC_P_USB_SS3_TC1_CONN_USB_OTG2_PWR	  0x00000021
+                SC_P_USB_SS3_TC3_CONN_USB_OTG2_OC	  0x00000021
             >;
         };
         ```
@@ -170,13 +170,13 @@
 
     iMX8 Pin Name	iMX8 Function Name	0C Assign Name	 I / O 	 Hi / Lo
 
-    USB_SS3_TC0		LSIO.GPIO4.IO03		USB_OTG_ENA			O		H
+    USB_SS3_TC0		LSIO.GPIO4.IO03		USB_OTG_ENA		O		H
     USB_SS3_TC2		LSIO.GPIO4.IO05		USB_OTG_OVC_b		I
 
     USB_SS3_TC1		LSIO.GPIO4.IO04		USB_HOST_ENB		O		H
     USB_SS3_TC3		LSIO.GPIO4.IO06		USB_HOST_OVC_b		I
 
-    SPDIF0_EXT_CLK	LSIO.GPIO2.IO16		USB_OTG_ID			I
+    SPDIF0_EXT_CLK		LSIO.GPIO2.IO16         USB_OTG_ID		I
 
 
     // pads-imx8qm.h
