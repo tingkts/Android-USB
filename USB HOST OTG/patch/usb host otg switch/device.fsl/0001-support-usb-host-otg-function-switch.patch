@@ -1,5 +1,5 @@
 From 9e713f4a6d814c2feb375b4c5d3471227e782914 Mon Sep 17 00:00:00 2001
-From: tingsung <tingsung@msi.com>
+From: ting <ting@gmail.com>
 Date: Thu, 28 May 2020 17:39:47 +0800
 Subject: [PATCH] support usb host/otg function switch
 
@@ -26,7 +26,7 @@ index 5b3d352..aafe749 100644
 @@ -3,7 +3,15 @@
  # The filesystem that contains the filesystem checker binary (typically /system) cannot
  # specify MF_CHECK, and must come before any filesystems that do specify MF_CHECK
- 
+
 +# usb port 1
  /devices/platform/5b0d0000.usb/ci_hdrc.0/* auto auto defaults voldmanaged=usb:auto
 +
@@ -46,7 +46,7 @@ index 67c242f..f29b5fb 100644
 @@ -51,6 +51,9 @@ on init
      write /dev/stune/rt/schedtune.boost 50
      write /dev/stune/rt/schedtune.prefer_idle 1
- 
+
 +    # Enable USB Slave function
 +    chmod 666 /sys/devices/platform/5b0d0000.usb/ci_hdrc.0/udc/ci_hdrc.0/switch_id
 +
@@ -67,7 +67,7 @@ index af4e388..3976329 100644
 +    setprop sys.usb.controller "ci_hdrc.0"
      write /sys/module/libcomposite/parameters/disable_l1_for_hs "y"
      symlink /config/usb_gadget/g1/configs/b.1 /config/usb_gadget/g1/os_desc/b.1
- 
+
 diff --git a/imx8q/sepolicy/device.te b/imx8q/sepolicy/device.te
 index 46aab44..47b0c4f 100644
 --- a/imx8q/sepolicy/device.te
@@ -98,6 +98,6 @@ index d297f34..c0aeb6d 100644
  allow system_server graphics_device:chr_file { open read ioctl };
  allow system_server sysfs_extcon:file { getattr open read };
 +allow system_server usb_switch_file:file { getattr open write };
--- 
+--
 2.7.4
 

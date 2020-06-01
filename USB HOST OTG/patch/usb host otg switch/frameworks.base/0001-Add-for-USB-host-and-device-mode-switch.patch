@@ -1,5 +1,5 @@
 From bae19c1590e6af9efddf0b570a6652010725532a Mon Sep 17 00:00:00 2001
-From: tingsung <tingsung@msi.com>
+From: ting <ting@gmail.com>
 Date: Tue, 10 Dec 2019 10:00:58 +0800
 Subject: [PATCH] Add for USB host and device mode switch
 

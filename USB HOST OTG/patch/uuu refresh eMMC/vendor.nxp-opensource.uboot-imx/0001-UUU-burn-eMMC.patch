@@ -1,5 +1,5 @@
 From dc447f19cf70ce8acbd23a3a90a03fda4ed23c19 Mon Sep 17 00:00:00 2001
-From: tingsung <tingsung@msi.com>
+From: ting <ting@gmail.com>
 Date: Tue, 5 May 2020 17:17:05 +0800
 Subject: [PATCH] UUU burn eMMC
 
@@ -25,7 +25,7 @@ index c83ca3c610..c4fa76bcd1 100644
 @@ -44,6 +44,15 @@
  			enable-active-high;
  		};
- 
+
 +		reg_usb_otg1_id: usb_otg1_id {
 +			compatible = "regulator-fixed";
 +			regulator-name = "usb_otg1_id";
@@ -51,7 +51,7 @@ index c83ca3c610..c4fa76bcd1 100644
 +		u-boot,dm-spl;
 +	};
  };
- 
+
  &iomuxc {
 @@ -77,6 +94,7 @@
  		pinctrl_hog: hoggrp {
@@ -64,7 +64,7 @@ index c83ca3c610..c4fa76bcd1 100644
 @@ -167,17 +185,19 @@
  			>;
  		};
- 
+
 -		pinctrl_typec: typecgrp {
 -			fsl,pins = <
 -				SC_P_QSPI1A_SS0_B_LSIO_GPIO4_IO19	0x60
@@ -79,7 +79,7 @@ index c83ca3c610..c4fa76bcd1 100644
 +		// 		SC_P_QSPI1A_DATA0_LSIO_GPIO4_IO26	0x00000021
 +		// 	>;
 +		// };
- 
+
  		pinctrl_usbotg1: usbotg1 {
  			fsl,pins = <
  				SC_P_USB_SS3_TC0_CONN_USB_OTG1_PWR		0x00000021
@@ -87,9 +87,9 @@ index c83ca3c610..c4fa76bcd1 100644
 +				SC_P_SPDIF0_EXT_CLK_LSIO_GPIO2_IO16		0x0600004c
  			>;
  		};
- 
+
 @@ -321,10 +341,14 @@
- 
+
  &usbotg1 {
  	vbus-supply = <&reg_usb_otg1_vbus>;
 +	pinctrl-names = "default";
@@ -102,11 +102,11 @@ index c83ca3c610..c4fa76bcd1 100644
 +	power-polarity-active-high;
  	status = "okay";
  };
- 
+
 @@ -423,21 +447,21 @@
  		#gpio-cells = <2>;
  	};
- 
+
 -	typec_ptn5110: typec@50 {
 -		compatible = "usb,tcpci";
 -		pinctrl-names = "default";
@@ -138,7 +138,7 @@ index c83ca3c610..c4fa76bcd1 100644
 +	// 	status = "okay";
 +	// };
  };
- 
+
  &lpuart0 { /* console */
 diff --git a/board/freescale/imx8qm_mek/imx8qm_mek.c b/board/freescale/imx8qm_mek/imx8qm_mek.c
 index 62bec8e46d..96b1de756e 100644
@@ -147,7 +147,7 @@ index 62bec8e46d..96b1de756e 100644
 @@ -199,8 +199,22 @@ int board_phy_config(struct phy_device *phydev)
  #define BB_GPIO_3V3_2 IMX_GPIO_NR(4, 24)
  #define BB_GPIO_3V3_3 IMX_GPIO_NR(4, 23)
- 
+
 +//Add by fred for usb otg1 id pin init+++
 +#define BB_GPIO_OTG1_ID IMX_GPIO_NR(2, 16)
 +
@@ -174,7 +174,7 @@ index ca13127a1f..afceb1ceec 100644
 @@ -109,21 +109,21 @@ CONFIG_SF_DEFAULT_CS=0
  CONFIG_SF_DEFAULT_SPEED=40000000
  CONFIG_SF_DEFAULT_MODE=0
- 
+
 -CONFIG_USB_XHCI_HCD=y
 -CONFIG_USB_XHCI_IMX8=y
 +# CONFIG_USB_XHCI_HCD is not set
@@ -197,7 +197,7 @@ index ca13127a1f..afceb1ceec 100644
 +# CONFIG_USB_CDNS3 is not set
 +# CONFIG_USB_CDNS3_GADGET is not set
  CONFIG_USB_GADGET_DUALSPEED=y
- 
+
  CONFIG_SPL_USB_GADGET=y
 @@ -140,7 +140,7 @@ CONFIG_FSL_FASTBOOT=y
  CONFIG_FASTBOOT_BUF_ADDR=0x98000000
@@ -205,7 +205,7 @@ index ca13127a1f..afceb1ceec 100644
  CONFIG_FASTBOOT_FLASH=y
 -CONFIG_FASTBOOT_USB_DEV=1
 +# CONFIG_FASTBOOT_USB_DEV=1
- 
+
  CONFIG_BOOTAUX_RESERVED_MEM_BASE=0x88000000
  CONFIG_BOOTAUX_RESERVED_MEM_SIZE=0x01000000
 diff --git a/configs/imx8qm_ms5765_android_trusty_defconfig b/configs/imx8qm_ms5765_android_trusty_defconfig
@@ -673,14 +673,14 @@ index 1df99325a5..76d42632dd 100644
 @@ -1309,9 +1309,9 @@ static int ci_udc_otg_probe(struct udevice *dev)
  	if (ret)
  		return ret;
- 
+
 -	ret = ehci_mx6_common_init(ehci, dev->seq);
 -	if (ret)
 -		return ret;
 +	// ret = ehci_mx6_common_init(ehci, dev->seq);
 +	// if (ret)
 +	// 	return ret;
- 
+
  	if (ci_udc_otg_phy_mode(dev) != USB_INIT_DEVICE)
  		return -ENODEV;
 diff --git a/include/configs/imx8qm_mek.h b/include/configs/imx8qm_mek.h
@@ -689,28 +689,28 @@ index edca76addf..78b862a342 100644
 +++ b/include/configs/imx8qm_mek.h
 @@ -77,8 +77,8 @@
  #define CONFIG_ENV_OVERWRITE
- 
+
  #define CONFIG_PCIE_IMX
 -#define CONFIG_CMD_PCI
 -#define CONFIG_PCI_SCAN_SHOW
 +//#define CONFIG_CMD_PCI
 +//#define CONFIG_PCI_SCAN_SHOW
- 
+
  #define CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
- 
+
 diff --git a/include/configs/imx8qm_mek_android.h b/include/configs/imx8qm_mek_android.h
 index 10b334da41..8a913251e5 100644
 --- a/include/configs/imx8qm_mek_android.h
 +++ b/include/configs/imx8qm_mek_android.h
 @@ -45,7 +45,7 @@
- 
- 
- 
+
+
+
 -#define CONFIG_FASTBOOT_USB_DEV 1
 +//#define CONFIG_FASTBOOT_USB_DEV 1
  #define CONFIG_ANDROID_RECOVERY
- 
+
  #define CONFIG_CMD_BOOTA
--- 
+--
 2.17.1
 
