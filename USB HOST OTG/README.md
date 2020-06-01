@@ -98,9 +98,9 @@
             pinctrl-names = "default";
             pinctrl-0 = <&pinctrl_usbotg1>;
             //dr_mode = "host";
-            srp-disable;                    // Session Request Protocol
-            hnp-disable;                    // Host Negotiation Protocol
-            adp-disable;                    // Attach Detection Protocol
+            srp-disable;                    		// Session Request Protocol
+            hnp-disable;                    		// Host Negotiation Protocol
+            adp-disable;                    		// Attach Detection Protocol
             select_id = <&gpio2 16 1>;
             disable-over-current;
             power-polarity-active-high;
