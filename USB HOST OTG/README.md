@@ -259,6 +259,244 @@
       ```
     - comment out "CONFIG_FASTBOOT_USB_DEV=1" to let it use the default value of 0
 
+- [uboot-imx](https://github.com/Freescale/u-boot-fslc):
+  - [cmd/fastboot.c](https://github.com/Freescale/u-boot-fslc/blob/2020.04%2Bfslc/cmd/fastboot.c)
+
+   ```
+
+    static int do_fastboot_usb(int argc, char *const argv[],
+    			   uintptr_t buf_addr, size_t buf_size)
+    {
+    #if CONFIG_IS_ENABLED(USB_FUNCTION_FASTBOOT)
+    	int controller_index;
+    	char *usb_controller;
+    	char *endp;
+    	int ret;
+    	int index;
+
+    	if (argc < 2)
+    		return CMD_RET_USAGE;
+
+    	if (!strcmp(argv[1], "auto")) {
+    		index = board_usb_gadget_port_auto();
+    		if (index >= 0)
+    			controller_index = index;
+    		else
+    			return CMD_RET_USAGE;
+    	} else {
+    		usb_controller = argv[1];
+    		controller_index = simple_strtoul(usb_controller, &endp, 0);
+    		if (*endp != '\0') {
+    			pr_err("Error: Wrong USB controller index format\n");
+    			return CMD_RET_FAILURE;
+    		}
+    #ifdef CONFIG_FASTBOOT_USB_DEV
+    		controller_index = CONFIG_FASTBOOT_USB_DEV;
+    #endif
+    	}
+
+    	ret = usb_gadget_initialize(controller_index);
+    	if (ret) {
+    		pr_err("USB init failed: %d\n", ret);
+    		return CMD_RET_FAILURE;
+    	}
+
+    	g_dnl_clear_detach();
+    	ret = g_dnl_register("usb_dnl_fastboot");
+    	if (ret)
+    		return ret;
+
+    	if (!g_dnl_board_usb_cable_connected()) {
+    		puts("\rUSB cable not detected.\n" \
+    		     "Command exit.\n");
+    		ret = CMD_RET_FAILURE;
+    		goto exit;
+    	}
+
+    	while (1) {
+    		if (g_dnl_detach())
+    			break;
+    		if (ctrlc())
+    			break;
+    		WATCHDOG_RESET();
+    		usb_gadget_handle_interrupts(controller_index);
+    	}
+
+    	ret = CMD_RET_SUCCESS;
+
+    exit:
+    	g_dnl_unregister();
+    	g_dnl_clear_detach();
+    	usb_gadget_release(controller_index);
+
+    	return ret;
+    #else
+    	pr_err("Fastboot USB not enabled\n");
+    	return CMD_RET_FAILURE;
+    #endif
+    }
+
+   ```
+
+    - [drivers/usb/gadget/g_dnl.c](https://github.com/Freescale/u-boot-fslc/blob/2020.04%2Bfslc/drivers/usb/gadget/g_dnl.c)
+
+   ```
+    int g_dnl_register(const char *name)
+    {
+        int ret;
+
+        debug("%s: g_dnl_driver.name = %s\n", __func__, name);
+        g_dnl_driver.name = name;
+
+        ret = usb_composite_register(&g_dnl_driver);
+        if (ret) {
+            printf("%s: failed!, error: %d\n", __func__, ret);
+            return ret;
+        }
+        return 0;
+    }
+   ```
+
+    - [drivers/usb/gadget/composite.c](https://github.com/Freescale/u-boot-fslc/blob/2020.04%2Bfslc/drivers/usb/gadget/composite.c)
+   ```
+    int usb_composite_register(struct usb_composite_driver *driver)
+    {
+        int res;
+
+        if (!driver || !driver->dev || !driver->bind || composite)
+            return -EINVAL;
+
+        if (!driver->name)
+            driver->name = "composite";
+        composite = driver;
+
+        res = usb_gadget_register_driver(&composite_driver);
+        if (res != 0)
+            composite = NULL;
+
+        return res;
+    }
+   ```
+
+    - [drivers/usb/gadget/ci_udc.c](https://github.com/Freescale/u-boot-fslc/blob/2020.04%2Bfslc/drivers/usb/gadget/ci_udc.c)
+   ```
+    int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+    {
+        int ret;
+
+        if (!driver)
+            return -EINVAL;
+        if (!driver->bind || !driver->setup || !driver->disconnect)
+            return -EINVAL;
+
+    #if CONFIG_IS_ENABLED(DM_USB)
+        ret = usb_setup_ehci_gadget(&controller.ctrl);
+    #else
+        ret = usb_lowlevel_init(0, USB_INIT_DEVICE, (void **)&controller.ctrl);
+    #endif
+        if (ret)
+            return ret;
+
+        ret = ci_udc_probe();
+        if (ret) {
+            DBG("udc probe failed, returned %d\n", ret);
+            return ret;
+        }
+
+        ret = driver->bind(&controller.gadget);
+        if (ret) {
+            DBG("driver->bind() returned %d\n", ret);
+            return ret;
+        }
+        controller.driver = driver;
+
+        return 0;
+    }
+   ```
+
+  - [drivers/usb/host/ehci-mx6.c](https://github.com/Freescale/u-boot-fslc/blob/2020.04%2Bfslc/drivers/usb/host/ehci-mx6.c)
+   ```
+
+   static int ehci_usb_probe(struct udevice *dev)
+   {
+    	struct usb_platdata *plat = dev_get_platdata(dev);
+    	struct usb_ehci *ehci = (struct usb_ehci *)devfdt_get_addr(dev);
+    	struct ehci_mx6_priv_data *priv = dev_get_priv(dev);
+    	enum usb_init_type type = plat->init_type;
+    	struct ehci_hccr *hccr;
+    	struct ehci_hcor *hcor;
+    	int ret;
+
+    #if defined(CONFIG_MX6)
+    	if (mx6_usb_fused((u32)ehci)) {
+    		printf("USB@0x%x is fused, disable it\n", (u32)ehci);
+    		return -ENODEV;
+    	}
+    #endif
+
+    	priv->ehci = ehci;
+    	priv->portnr = dev->seq;
+
+    	/* Init usb board level according to the requested init type */
+    	ret = board_usb_init(priv->portnr, type);
+    	if (ret) {
+    		printf("Failed to initialize board for USB\n");
+    		return ret;
+    	}
+
+    #if CONFIG_IS_ENABLED(DM_REGULATOR)
+    	ret = device_get_supply_regulator(dev, "vbus-supply",
+    					  &priv->vbus_supply);
+    	if (ret)
+    		debug("%s: No vbus supply\n", dev->name);
+    #endif
+
+    	ret = ehci_get_usb_phy(dev);
+    	if (ret) {
+    		debug("%s: fail to get USB PHY base\n", dev->name);
+    		return ret;
+    	}
+
+    	ret = ehci_mx6_common_init(ehci, priv->portnr);
+    	if (ret)
+    		return ret;
+
+    	/* If the init_type is unknown due to it is not forced in DTB, we use USB ID to detect */
+    	if (priv->init_type == USB_INIT_UNKNOWN) {
+    		ret = ehci_usb_phy_mode(dev);
+    		if (ret)
+    			return ret;
+    		if (priv->init_type != type)
+    			return -ENODEV;
+    	}
+
+    #if CONFIG_IS_ENABLED(DM_REGULATOR)
+    	if (priv->vbus_supply) {
+    		ret = regulator_set_enable(priv->vbus_supply,
+    					   (priv->init_type == USB_INIT_DEVICE) ?
+    					   false : true);
+    		if (ret) {
+    			puts("Error enabling VBUS supply\n");
+    			return ret;
+    		}
+    	}
+    #endif
+
+    	if (priv->init_type == USB_INIT_HOST) {
+    		setbits_le32(&ehci->usbmode, CM_HOST);
+    		writel(CONFIG_MXC_USB_PORTSC, &ehci->portsc);
+    		setbits_le32(&ehci->portsc, USB_EN);
+    	}
+
+    	mdelay(10);
+
+    	hccr = (struct ehci_hccr *)((ulong)&ehci->caplength);
+    	hcor = (struct ehci_hcor *)((ulong)hccr +
+    			HC_LENGTH(ehci_readl(&(hccr)->cr_capbase)));
+
+    	return ehci_register(dev, hccr, hcor, &mx6_ehci_ops, 0, priv->init_type);
+   }
+   ```
 
 <br>
 
@@ -309,21 +547,21 @@
 
         drivers/usb
 
-    	 common/common.o  
-	 
+    	 common/common.o
+
     	 eth/asix.o
-    	 eth/usb_ether.o  
-    	 
+    	 eth/usb_ether.o
+
     	 gadget/ci_udc.o
     	 gadget/config.o
     	 gadget/epautoconf.o
     	 gadget/f_fastboot.o
     	 gadget/f_mass_storage.o
     	 gadget/g_dnl.o
-    	 gadget/usbstring.o  
+    	 gadget/usbstring.o
     	 gadget/udc/udc-core.o
-    	 gadget/udc/udc-uclass.o  
-    	 
+    	 gadget/udc/udc-uclass.o
+
     	 host/ehci-hcd.o
     	 host/ehci-mx6.o
     	 host/usb-uclass.o
