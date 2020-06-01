@@ -309,25 +309,21 @@
 
         drivers/usb
 
-    		common/common.o
-
-    		eth/asix.o
-    		eth/usb_ether.o
-
-    		gadget/ci_udc.o
-    		gadget/config.o
-    		gadget/epautoconf.o
-    		gadget/f_fastboot.o
-    		gadget/f_mass_storage.o
-    		gadget/g_dnl.o
-    		gadget/usbstring.o
-
-    		gadget/udc/udc-core.o
-    		gadget/udc/udc-uclass.o
-
-    		host/ehci-hcd.o
-    		host/ehci-mx6.o
-    		host/usb-uclass.o
+    	 common/common.o  
+    	 eth/asix.o
+    	 eth/usb_ether.o  
+    	 gadget/ci_udc.o
+    	 gadget/config.o
+    	 gadget/epautoconf.o
+    	 gadget/f_fastboot.o
+    	 gadget/f_mass_storage.o
+    	 gadget/g_dnl.o
+    	 gadget/usbstring.o  
+    	 gadget/udc/udc-core.o
+    	 gadget/udc/udc-uclass.o  
+    	 host/ehci-hcd.o
+    	 host/ehci-mx6.o
+    	 host/usb-uclass.o
 
 
   ```
