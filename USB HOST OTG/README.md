@@ -288,24 +288,48 @@
 - out :
 
   ```
-  out\target\product\ms5765\obj\KERNEL_OBJ
-      .config
+    // kernel
+    out/target/product/ms5765/obj/KERNEL_OBJ
+        .config
 
-      arch\arm64\boot\dts\freescale\fsl-imx8qm-mek.dtb
+        arch/arm64/boot/dts/freescale/fsl-imx8qm-mek.dtb
 
-      drivers\usb
+        drivers/usb
 
 
-  out\target\product\ms5765\obj\UBOOT_OBJ
+    // u-boot
+    out/target/product/ms5765/obj/UBOOT_OBJ
 
-      .config
+        .config
 
-      u-boot.cfg
-      u-boot.cfg.configs
+        u-boot.cfg
+        u-boot.cfg.configs
 
-      dts\dt.dtb
+        dts/dt.dtb
 
-      drivers\usb
+        drivers/usb
+
+    		common/common.o
+
+    		eth/asix.o
+    		eth/usb_ether.o
+
+    		gadget/ci_udc.o
+    		gadget/config.o
+    		gadget/epautoconf.o
+    		gadget/f_fastboot.o
+    		gadget/f_mass_storage.o
+    		gadget/g_dnl.o
+    		gadget/usbstring.o
+
+    		gadget/udc/udc-core.o
+    		gadget/udc/udc-uclass.o
+
+    		host/ehci-hcd.o
+    		host/ehci-mx6.o
+    		host/usb-uclass.o
+
+
   ```
 
 
