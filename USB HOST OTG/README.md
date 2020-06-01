@@ -168,12 +168,12 @@
     ```
     // GPIO mapping table
 
-    iMX8 Pin Name	iMX8 Function Name	0C Assign Name	 I / O 	 Hi / Lo
+    iMX8 Pin Name		iMX8 Function Name	0C Assign Name		I / O	Hi / Lo
 
-    USB_SS3_TC0		LSIO.GPIO4.IO03		USB_OTG_ENA		O		H
+    USB_SS3_TC0		LSIO.GPIO4.IO03		USB_OTG_ENA		O	H
     USB_SS3_TC2		LSIO.GPIO4.IO05		USB_OTG_OVC_b		I
 
-    USB_SS3_TC1		LSIO.GPIO4.IO04		USB_HOST_ENB		O		H
+    USB_SS3_TC1		LSIO.GPIO4.IO04		USB_HOST_ENB		O	H
     USB_SS3_TC3		LSIO.GPIO4.IO06		USB_HOST_OVC_b		I
 
     SPDIF0_EXT_CLK		LSIO.GPIO2.IO16         USB_OTG_ID		I
