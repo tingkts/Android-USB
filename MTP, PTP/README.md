@@ -32,6 +32,10 @@
 
 ![avatar](https://github.com/tingkts/Android-USB/blob/master/MTP%2C%20PTP/reference/Windows%20Device%20Manager%20ADB%20MTP%20driver.PNG)
 
+<br/>
+
+![avatar](https://github.com/tingkts/Android-USB/blob/master/MTP%2C%20PTP/reference/ADB%20Drivers%20showing%20up%20as%20'LeMobile%20Android%20Device'%20-%20HELP_%20_%20Nexus6P_%20-%20www.reddit.com.png)
+
 
 ### USB glossary
 
