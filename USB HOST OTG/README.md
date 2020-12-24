@@ -37,7 +37,7 @@
   - dualrole device: can be host or slave negotiated by OTG protocol
   - peripheral only device: acts as slave only
 
-### USB ID Pin : The swith of USB Host or Slave (USB Host or OTG)
+### USB ID Pin : The switch of USB Host or Slave (USB Host or OTG)
 
 - patch :
   - [kernel](./patch/usb%20host%20otg%20switch/vendor.nxp-opensource.kernel_imx/0001-usb-port1-host-otg-function-switch.patch) : export usb id pin as switch_id node.
@@ -69,7 +69,7 @@
     if disable adb debug, usb port 1 & 2 both work as USB Host;<br>
     else if enable adb debug, usb port 1 works as USB OTG, usb port 2 works as USB Host.
 
-### DTS & pinctrl, driver
+#### DTS, Pin Control, Driver
 
 - dts :
 
@@ -222,6 +222,19 @@
     	{ },
     };
     ```
+
+
+<br>
+
+### USB "dr_mode" : USB role of Host, Peripheral, OTG
+
+```
+// host, peripheral, otg
+
+cat /sys/devices/platform/soc/7000000.ssusb/mode
+
+echo peripheral >　/sys/devices/platform/soc/7000000.ssusb/mode
+```
 
 <br>
 
